@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
 import { doctorsAPI } from '../services/api';
-import { Doctor } from '../types';
 import { 
   UserIcon, 
   AcademicCapIcon, 
@@ -12,24 +11,11 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 
-interface DoctorProfileFormData {
-  specialization: string;
-  experience: number;
-  education: string;
-  bio: string;
-  consultationFee: number;
-}
-
-interface AvailabilityFormData {
-  day: string;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-}
-
-const DoctorProfile: React.FC = () => {
+const DoctorProfile = () => {
   const { user } = useAuth();
-  const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const [doctor, setDoctor] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -40,16 +26,16 @@ const DoctorProfile: React.FC = () => {
     handleSubmit: handleProfileSubmit,
     formState: { errors: profileErrors },
     reset: resetProfile,
-  } = useForm<DoctorProfileFormData>();
+  } = useForm();
 
   const {
     register: registerAvailability,
     handleSubmit: handleAvailabilitySubmit,
     formState: { errors: availabilityErrors },
     reset: resetAvailability,
-  } = useForm<AvailabilityFormData>();
+  } = useForm();
 
-  const [availability, setAvailability] = useState<AvailabilityFormData[]>([]);
+  const [availability, setAvailability] = useState([]);
 
   const specializations = [
     'Cardiology',
@@ -93,36 +79,23 @@ const DoctorProfile: React.FC = () => {
   useEffect(() => {
     const fetchDoctorProfile = async () => {
       try {
-        // For now, we'll create a mock doctor profile since we don't have the backend
-        // In a real app, you would fetch this from the API
-        const mockDoctor: Doctor = {
-          _id: '1',
-          userId: user?._id || '',
-          specialization: 'Cardiology',
-          experience: 5,
-          education: 'MBBS, MD in Cardiology',
-          licenseNumber: 'MD123456',
-          availability: [],
-          rating: 4.5,
-          totalReviews: 25,
-          bio: 'Experienced cardiologist with expertise in preventive cardiology and interventional procedures.',
-          consultationFee: 150,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
+        const res = await doctorsAPI.getAllDoctors();
+        if (res.success && res.data) {
+          const me = res.data.find(d => d.user?._id === user?._id);
+          if (me) {
+            setDoctor(me);
+            setPhotoPreview(me.photoUrl || '');
+            resetProfile({
+              specialization: me.specialization || '',
+              experience: me.experience || 0,
+              education: me.education || '',
+              bio: me.bio || '',
+              consultationFee: me.consultationFee || 0,
+            });
+          }
+        }
 
-        setDoctor(mockDoctor);
-        
-        // Initialize form with current data
-        resetProfile({
-          specialization: mockDoctor.specialization,
-          experience: mockDoctor.experience,
-          education: mockDoctor.education,
-          bio: mockDoctor.bio,
-          consultationFee: mockDoctor.consultationFee,
-        });
-
-        // Initialize availability
+        // Initialize default weekday availability (client-side only UI)
         const initialAvailability = daysOfWeek.map(day => ({
           day,
           startTime: '09:00',
@@ -142,7 +115,7 @@ const DoctorProfile: React.FC = () => {
     fetchDoctorProfile();
   }, [user, resetProfile]);
 
-  const onProfileSubmit = async (data: DoctorProfileFormData) => {
+  const onProfileSubmit = async (data) => {
     setSaving(true);
     setError('');
     setSuccess('');
@@ -156,14 +129,14 @@ const DoctorProfile: React.FC = () => {
       
       setSuccess('Profile updated successfully!');
       setDoctor(prev => prev ? { ...prev, ...data } : null);
-    } catch (error: any) {
+    } catch (error) {
       setError(error.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
   };
 
-  const onAvailabilitySubmit = async (data: AvailabilityFormData) => {
+  const onAvailabilitySubmit = async (data) => {
     setSaving(true);
     setError('');
     setSuccess('');
@@ -177,17 +150,41 @@ const DoctorProfile: React.FC = () => {
       
       setSuccess('Availability updated successfully!');
       resetAvailability();
-    } catch (error: any) {
+    } catch (error) {
       setError(error.message || 'Failed to update availability');
     } finally {
       setSaving(false);
     }
   };
 
-  const updateAvailability = (index: number, field: keyof AvailabilityFormData, value: any) => {
+  const updateAvailability = (index, field, value) => {
     const newAvailability = [...availability];
     newAvailability[index] = { ...newAvailability[index], [field]: value };
     setAvailability(newAvailability);
+  };
+
+  const onPhotoSelected = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const localUrl = URL.createObjectURL(file);
+      setPhotoPreview(localUrl);
+      const res = await doctorsAPI.uploadPhoto(file);
+      if (res.success && res.data?.photoUrl) {
+        setPhotoPreview(res.data.photoUrl);
+        setDoctor(prev => prev ? { ...prev, photoUrl: res.data.photoUrl } : prev);
+        setSuccess('Profile photo updated');
+      } else {
+        setError(res.message || 'Failed to upload photo');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to upload photo');
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (loading) {
@@ -218,9 +215,29 @@ const DoctorProfile: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Profile Information */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Profile Photo */}
         <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Profile Photo</h2>
+          <div className="flex items-center space-x-4">
+            <div className="h-24 w-24 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center text-gray-400 text-xl">
+              {photoPreview ? (
+                <img src={photoPreview} alt="Profile" className="h-full w-full object-cover" />
+              ) : (
+                <UserIcon className="h-10 w-10" />
+              )}
+            </div>
+            <div>
+              <label className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700">
+                {uploading ? 'Uploading...' : 'Upload Photo'}
+                <input type="file" accept="image/*" onChange={onPhotoSelected} className="hidden" />
+              </label>
+              <p className="text-xs text-gray-500 mt-2">JPEG/PNG/WebP, up to 2MB.</p>
+            </div>
+          </div>
+        </div>
+        {/* Profile Information */}
+        <div className="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Professional Information</h2>
           
           <form onSubmit={handleProfileSubmit(onProfileSubmit)} className="space-y-6">
@@ -425,7 +442,7 @@ const DoctorProfile: React.FC = () => {
           </div>
 
           <button
-            onClick={() => onAvailabilitySubmit({} as AvailabilityFormData)}
+            onClick={() => onAvailabilitySubmit({})}
             disabled={saving}
             className="w-full mt-6 flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -436,8 +453,8 @@ const DoctorProfile: React.FC = () => {
               </div>
             ) : (
               <>
-                                  <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                  Save Availability
+                <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                Save Availability
               </>
             )}
           </button>

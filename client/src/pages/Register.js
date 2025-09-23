@@ -4,15 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
-interface RegisterFormData {
-  name: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  phone: string;
-}
-
-const Register: React.FC = () => {
+const Register = () => {
   const { register: registerUser } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -25,11 +17,11 @@ const Register: React.FC = () => {
     handleSubmit,
     watch,
     formState: { errors },
-  } = useForm<RegisterFormData>();
+  } = useForm();
 
   const password = watch('password');
 
-  const onSubmit = async (data: RegisterFormData) => {
+  const onSubmit = async (data) => {
     setLoading(true);
     setError('');
 
@@ -38,13 +30,13 @@ const Register: React.FC = () => {
         name: data.name,
         email: data.email,
         password: data.password,
-        role: 'patient' as const,
+        role: 'patient',
         phone: data.phone,
       };
 
       await registerUser(userData);
       navigate('/dashboard');
-    } catch (error: any) {
+    } catch (error) {
       setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);

@@ -4,12 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
-interface LoginFormData {
-  email: string;
-  password: string;
-}
-
-const Login: React.FC = () => {
+const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -20,9 +15,9 @@ const Login: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>();
+  } = useForm();
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data) => {
     setLoading(true);
     setError('');
     console.log('Attempting login with:', data.email);
@@ -52,7 +47,7 @@ const Login: React.FC = () => {
         // Fallback redirect
         navigate('/dashboard');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Login error:', error);
       setError(error.message || 'Login failed. Please try again.');
     } finally {

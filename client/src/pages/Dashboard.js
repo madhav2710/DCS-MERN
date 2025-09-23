@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { doctorsAPI, appointmentsAPI } from '../services/api';
-import { Doctor, User, AppointmentWithDetails } from '../types';
+import { doctorsAPI, appointmentsAPI, API_ORIGIN } from '../services/api';
 import { 
   CalendarIcon, 
   ClockIcon, 
@@ -15,10 +13,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 
-const Dashboard: React.FC = () => {
+const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
-  const [doctors, setDoctors] = useState<(Doctor & { user: User })[]>([]);
-  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
+  const [doctors, setDoctors] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialization, setSelectedSpecialization] = useState('');
@@ -66,7 +64,7 @@ const Dashboard: React.FC = () => {
 
   const specializations = Array.from(new Set(doctors.map(d => d.specialization)));
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -147,11 +145,15 @@ const Dashboard: React.FC = () => {
                   {upcomingAppointments.map((appointment) => (
                     <div key={appointment._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div className="flex items-center">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
+                        {appointment.doctor.photoUrl ? (
+                          <img src={`${appointment.doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${appointment.doctor.photoUrl}`} alt={appointment.doctor.user.name} className="h-full w-full object-cover" />
+                        ) : (
                           <span className="text-blue-600 font-bold">
                             {appointment.doctor.user.name.charAt(0)}
                           </span>
-                        </div>
+                        )}
+                      </div>
                         <div className="ml-4">
                           <h3 className="font-semibold text-gray-900">
                             Dr. {appointment.doctor.user.name}
@@ -236,10 +238,14 @@ const Dashboard: React.FC = () => {
                 {filteredDoctors.slice(0, 5).map((doctor) => (
                   <div key={doctor._id} className="p-4 border border-gray-200 rounded-lg">
                     <div className="flex items-center">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 font-bold text-sm">
-                          {doctor.user.name.charAt(0)}
-                        </span>
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
+                        {doctor.photoUrl ? (
+                          <img src={`${doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${doctor.photoUrl}`} alt={doctor.user.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-blue-600 font-bold text-sm">
+                            {doctor.user.name.charAt(0)}
+                          </span>
+                        )}
                       </div>
                       <div className="ml-3 flex-1">
                         <h3 className="text-sm font-medium text-gray-900">

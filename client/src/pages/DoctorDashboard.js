@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { appointmentsAPI } from '../services/api';
-import { AppointmentWithDetails } from '../types';
 import { 
   CalendarIcon, 
   ClockIcon, 
@@ -13,9 +12,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 
-const DoctorDashboard: React.FC = () => {
+const DoctorDashboard = () => {
   const { user } = useAuth();
-  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState('all');
 
@@ -51,7 +50,7 @@ const DoctorDashboard: React.FC = () => {
     apt.status === 'confirmed' || apt.status === 'pending'
   ).slice(0, 5);
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -61,7 +60,7 @@ const DoctorDashboard: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status) => {
     switch (status) {
       case 'confirmed': return <CheckCircleIcon className="h-5 w-5 text-green-600" />;
       case 'pending': return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600" />;
@@ -71,7 +70,7 @@ const DoctorDashboard: React.FC = () => {
     }
   };
 
-  const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
+  const handleStatusUpdate = async (appointmentId, newStatus) => {
     try {
       await appointmentsAPI.updateAppointmentStatus(appointmentId, newStatus);
       // Refresh appointments

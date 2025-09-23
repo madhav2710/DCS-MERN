@@ -45,9 +45,19 @@ const doctorSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  reviews: [{
+    patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rating: { type: Number, min: 1, max: 5, required: true },
+    comment: { type: String, trim: true },
+    createdAt: { type: Date, default: Date.now }
+  }],
   bio: {
     type: String,
     trim: true
+  },
+  photoUrl: {
+    type: String,
+    default: ''
   },
   consultationFee: {
     type: Number,

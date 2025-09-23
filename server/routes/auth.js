@@ -1,6 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const User = require('../models/User');
 const Doctor = require('../models/Doctor');
 const { authenticateToken } = require('../middleware/auth');
@@ -11,6 +14,27 @@ const router = express.Router();
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '24h' });
 };
+
+// Multer setup for optional doctor photo at registration
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    cb(null, `doctor_${Date.now()}${ext}`);
+  }
+});
+const fileFilter = (req, file, cb) => {
+  if (!file || !file.mimetype) return cb(null, true);
+  if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) cb(null, true);
+  else cb(new Error('Only jpeg, png, webp images are allowed'));
+};
+const upload = multer({ storage, fileFilter, limits: { fileSize: 2 * 1024 * 1024 } });
 
 // Register patient
 router.post('/register', async (req, res) => {
@@ -73,8 +97,8 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Register doctor
-router.post('/register-doctor', async (req, res) => {
+// Register doctor (supports multipart form with optional photo)
+router.post('/register-doctor', upload.single('photo'), async (req, res) => {
   try {
     const {
       name, email, password, phone, specialization,
@@ -131,7 +155,8 @@ router.post('/register-doctor', async (req, res) => {
       licenseNumber,
       availability: [],
       bio,
-      consultationFee
+      consultationFee,
+      photoUrl: req.file ? `/uploads/${path.basename(req.file.path)}` : ''
     });
 
     await newDoctor.save();

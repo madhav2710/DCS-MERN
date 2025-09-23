@@ -14,10 +14,7 @@ import DoctorProfile from './pages/DoctorProfile';
 import LoadingSpinner from './components/LoadingSpinner';
 
 // Protected Route Component - Simplified for testing
-const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ 
-  children, 
-  allowedRoles 
-}) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading, isAuthenticated } = useAuth();
 
   if (loading) {
@@ -38,7 +35,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
 };
 
 // Main App Content
-const AppContent: React.FC = () => {
+const AppContent = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -119,7 +116,7 @@ const AppContent: React.FC = () => {
 };
 
 // Main App Component
-const App: React.FC = () => {
+const App = () => {
   return (
     <AuthProvider>
       <AppContent />

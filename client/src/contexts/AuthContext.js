@@ -1,18 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '../types';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
 
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (userData: any) => Promise<void>;
-  registerDoctor: (doctorData: any) => Promise<void>;
-  logout: () => void;
-  isAuthenticated: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -22,12 +11,8 @@ export const useAuth = () => {
   return context;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,7 +41,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email, password) => {
     try {
       console.log('AuthContext: Attempting login for:', email);
       const response = await authAPI.login({ email, password });
@@ -73,13 +58,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('AuthContext: Login failed - no success or data');
         throw new Error(response.message || 'Login failed');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('AuthContext: Login error:', error);
       throw new Error(error.message || 'Login failed');
     }
   };
 
-  const register = async (userData: any) => {
+  const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
       if (response.success && response.data) {
@@ -90,12 +75,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         throw new Error(response.message || 'Registration failed');
       }
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.message || 'Registration failed');
     }
   };
 
-  const registerDoctor = async (doctorData: any) => {
+  const registerDoctor = async (doctorData) => {
     try {
       const response = await authAPI.registerDoctor(doctorData);
       if (response.success && response.data) {
@@ -106,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         throw new Error(response.message || 'Doctor registration failed');
       }
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.message || 'Doctor registration failed');
     }
   };
@@ -117,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('user');
   };
 
-  const value: AuthContextType = {
+  const value = {
     user,
     loading,
     login,

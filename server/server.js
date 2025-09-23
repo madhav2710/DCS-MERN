@@ -9,6 +9,7 @@ const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 const doctorRoutes = require('./routes/doctors');
 const appointmentRoutes = require('./routes/appointments');
+const paymentRoutes = require('./routes/payment');
 
 const app = express();
 
@@ -19,6 +20,8 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Serve uploaded images statically
+app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -30,6 +33,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

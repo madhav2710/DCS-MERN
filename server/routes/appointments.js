@@ -206,6 +206,49 @@ router.put('/:id/status', authenticateToken, authorizeRoles('doctor'), async (re
   }
 });
 
+// Patient adds rating and review after completion
+router.post('/:id/review', authenticateToken, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+    if (appointment.patientId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to review this appointment' });
+    }
+    if (appointment.status !== 'completed') {
+      return res.status(400).json({ success: false, message: 'You can review only completed appointments' });
+    }
+
+    const doctor = await Doctor.findById(appointment.doctorId);
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+
+    // Prevent duplicate reviews for same appointment by same patient
+    const alreadyReviewed = doctor.reviews?.some(r => r.patientId?.toString() === req.user._id.toString() && r.createdAt && new Date(r.createdAt).getTime());
+    if (alreadyReviewed) {
+      // Allow multiple reviews? For simplicity, allow multiple; otherwise uncomment next line
+      // return res.status(400).json({ success: false, message: 'You have already reviewed this doctor' });
+    }
+
+    doctor.reviews = doctor.reviews || [];
+    doctor.reviews.push({ patientId: req.user._id, rating, comment });
+
+    // Update rating/totalReviews
+    doctor.totalReviews = (doctor.reviews || []).length;
+    const sum = doctor.reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+    doctor.rating = doctor.totalReviews ? (sum / doctor.totalReviews) : 0;
+    await doctor.save();
+
+    res.json({ success: true, message: 'Review submitted', data: { rating: doctor.rating, totalReviews: doctor.totalReviews } });
+  } catch (error) {
+    console.error('Submit review error:', error);
+    res.status(500).json({ success: false, message: 'Failed to submit review' });
+  }
+});
+
 // Cancel appointment
 router.put('/:id/cancel', authenticateToken, async (req, res) => {
   try {

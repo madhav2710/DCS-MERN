@@ -4,34 +4,22 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
-interface DoctorRegisterFormData {
-  name: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  phone: string;
-  specialization: string;
-  experience: number;
-  education: string;
-  licenseNumber: string;
-  bio: string;
-  consultationFee: number;
-}
-
-const DoctorRegister: React.FC = () => {
+const DoctorRegister = () => {
   const { registerDoctor } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
 
   const {
     register,
     handleSubmit,
     watch,
     formState: { errors },
-  } = useForm<DoctorRegisterFormData>();
+  } = useForm();
 
   const password = watch('password');
 
@@ -58,28 +46,45 @@ const DoctorRegister: React.FC = () => {
     'Other'
   ];
 
-  const onSubmit = async (data: DoctorRegisterFormData) => {
+  const onSubmit = async (data) => {
     setLoading(true);
     setError('');
 
     try {
-      const doctorData = {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        role: 'doctor' as const,
-        phone: data.phone,
-        specialization: data.specialization,
-        experience: data.experience,
-        education: data.education,
-        licenseNumber: data.licenseNumber,
-        bio: data.bio,
-        consultationFee: data.consultationFee,
-      };
+      let payload;
+      if (photoFile) {
+        const form = new FormData();
+        form.append('name', data.name);
+        form.append('email', data.email);
+        form.append('password', data.password);
+        form.append('phone', data.phone);
+        form.append('specialization', data.specialization);
+        form.append('experience', String(data.experience));
+        form.append('education', data.education);
+        form.append('licenseNumber', data.licenseNumber);
+        form.append('bio', data.bio);
+        form.append('consultationFee', String(data.consultationFee));
+        form.append('photo', photoFile);
+        payload = form;
+      } else {
+        payload = {
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          role: 'doctor',
+          phone: data.phone,
+          specialization: data.specialization,
+          experience: data.experience,
+          education: data.education,
+          licenseNumber: data.licenseNumber,
+          bio: data.bio,
+          consultationFee: data.consultationFee,
+        };
+      }
 
-      await registerDoctor(doctorData);
+      await registerDoctor(payload);
       navigate('/doctor-dashboard');
-    } catch (error: any) {
+    } catch (error) {
       setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
@@ -205,6 +210,44 @@ const DoctorRegister: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Photo */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Profile Photo (optional)</h3>
+              <div className="flex items-center space-x-4">
+                <div className="h-16 w-16 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center text-gray-400">
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-sm">No photo</span>
+                  )}
+                </div>
+                <label className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700">
+                  Choose Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const f = e.target.files && e.target.files[0];
+                      if (!f) return;
+                      setPhotoFile(f);
+                      setPhotoPreview(URL.createObjectURL(f));
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                {photoFile && (
+                  <button
+                    type="button"
+                    onClick={() => { setPhotoFile(null); setPhotoPreview(''); }}
+                    className="text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">JPEG/PNG/WebP, up to 2MB.</p>
             </div>
 
             {/* Professional Information */}
@@ -371,11 +414,11 @@ const DoctorRegister: React.FC = () => {
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                                        {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
-                  )}
+                      {showPassword ? (
+                        <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <EyeIcon className="h-5 w-5 text-gray-400" />
+                      )}
                     </button>
                   </div>
                   {errors.password && (
@@ -406,11 +449,11 @@ const DoctorRegister: React.FC = () => {
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
-                                        {showConfirmPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
-                  )}
+                      {showConfirmPassword ? (
+                        <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <EyeIcon className="h-5 w-5 text-gray-400" />
+                      )}
                     </button>
                   </div>
                   {errors.confirmPassword && (

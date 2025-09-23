@@ -1,16 +1,7 @@
-import axios, { AxiosResponse } from 'axios';
-import { 
-  User, 
-  Doctor, 
-  Appointment, 
-  AppointmentWithDetails,
-  LoginCredentials, 
-  RegisterData, 
-  DoctorRegistrationData,
-  ApiResponse 
-} from '../types';
+import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+export const API_ORIGIN = API_BASE_URL.replace(/\/api$/, '');
 
 // Create axios instance with default config
 const api = axios.create({
@@ -36,7 +27,7 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response: AxiosResponse) => {
+  (response) => {
     return response;
   },
   (error) => {
@@ -51,38 +42,41 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: async (credentials: LoginCredentials): Promise<ApiResponse<{ user: User; token: string }>> => {
+  login: async (credentials) => {
     try {
       const response = await api.post('/auth/login', credentials);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Login failed');
     }
   },
 
-  register: async (userData: RegisterData): Promise<ApiResponse<{ user: User; token: string }>> => {
+  register: async (userData) => {
     try {
       const response = await api.post('/auth/register', userData);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Registration failed');
     }
   },
 
-  registerDoctor: async (doctorData: DoctorRegistrationData): Promise<ApiResponse<{ user: User; doctor: Doctor; token: string }>> => {
+  registerDoctor: async (doctorData) => {
     try {
-      const response = await api.post('/auth/register-doctor', doctorData);
+      const isFormData = typeof FormData !== 'undefined' && doctorData instanceof FormData;
+      const response = await api.post('/auth/register-doctor', doctorData, isFormData ? {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      } : undefined);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Doctor registration failed');
     }
   },
 
-  getCurrentUser: async (): Promise<ApiResponse<User>> => {
+  getCurrentUser: async () => {
     try {
       const response = await api.get('/auth/me');
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to get user data');
     }
   },
@@ -90,111 +84,136 @@ export const authAPI = {
 
 // Doctors API
 export const doctorsAPI = {
-  getAllDoctors: async (): Promise<ApiResponse<(Doctor & { user: User })[]>> => {
+  getAllDoctors: async () => {
     try {
       const response = await api.get('/doctors');
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch doctors');
     }
   },
 
-  getDoctorById: async (id: string): Promise<ApiResponse<Doctor & { user: User }>> => {
+  getDoctorById: async (id) => {
     try {
       const response = await api.get(`/doctors/${id}`);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch doctor');
     }
   },
 
-  getDoctorsBySpecialization: async (specialization: string): Promise<ApiResponse<(Doctor & { user: User })[]>> => {
+  getDoctorsBySpecialization: async (specialization) => {
     try {
       const response = await api.get(`/doctors/specialization/${specialization}`);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch doctors by specialization');
     }
   },
 
-  updateDoctorProfile: async (doctorData: Partial<Doctor>): Promise<ApiResponse<Doctor>> => {
+  updateDoctorProfile: async (doctorData) => {
     try {
       const response = await api.put('/doctors/profile', doctorData);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to update doctor profile');
     }
   },
 
-  updateAvailability: async (availability: any[]): Promise<ApiResponse<Doctor>> => {
+  updateAvailability: async (availability) => {
     try {
       const response = await api.put('/doctors/availability', { availability });
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to update availability');
     }
+  },
+
+  uploadPhoto: async (file) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const response = await api.post('/doctors/photo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
   },
 };
 
 // Appointments API
 export const appointmentsAPI = {
-  createAppointment: async (appointmentData: {
-    doctorId: string;
-    date: string;
-    time: string;
-    symptoms: string;
-  }): Promise<ApiResponse<Appointment>> => {
+  createAppointment: async (appointmentData) => {
     try {
       const response = await api.post('/appointments', appointmentData);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to create appointment');
     }
   },
 
-  getPatientAppointments: async (): Promise<ApiResponse<AppointmentWithDetails[]>> => {
+  getPatientAppointments: async () => {
     try {
       const response = await api.get('/appointments/patient');
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch appointments');
     }
   },
 
-  getDoctorAppointments: async (): Promise<ApiResponse<AppointmentWithDetails[]>> => {
+  getDoctorAppointments: async () => {
     try {
       const response = await api.get('/appointments/doctor');
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch appointments');
     }
   },
 
-  updateAppointmentStatus: async (appointmentId: string, status: string, notes?: string): Promise<ApiResponse<Appointment>> => {
+  updateAppointmentStatus: async (appointmentId, status, notes) => {
     try {
       const response = await api.put(`/appointments/${appointmentId}/status`, { status, notes });
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to update appointment status');
     }
   },
 
-  cancelAppointment: async (appointmentId: string): Promise<ApiResponse<Appointment>> => {
+  cancelAppointment: async (appointmentId) => {
     try {
       const response = await api.put(`/appointments/${appointmentId}/cancel`);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to cancel appointment');
     }
   },
 
-  getAppointmentById: async (appointmentId: string): Promise<ApiResponse<AppointmentWithDetails>> => {
+  getAppointmentById: async (appointmentId) => {
     try {
       const response = await api.get(`/appointments/${appointmentId}`);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch appointment');
     }
+  },
+
+  submitReview: async (appointmentId, { rating, comment }) => {
+    const response = await api.post(`/appointments/${appointmentId}/review`, { rating, comment });
+    return response.data;
+  },
+};
+
+// Payments API
+export const paymentsAPI = {
+  getKey: async () => {
+    const response = await api.get('/payment/key');
+    return response.data;
+  },
+  createOrder: async (payload) => {
+    const response = await api.post('/payment/orders', payload);
+    return response.data;
+  },
+  verifyPayment: async (payload) => {
+    const response = await api.post('/payment/verify', payload);
+    return response.data;
   },
 };
 

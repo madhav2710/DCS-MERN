@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { appointmentsAPI } from '../services/api';
-import { AppointmentWithDetails } from '../types';
+import { appointmentsAPI, API_ORIGIN } from '../services/api';
 import { 
   CalendarIcon, 
   ClockIcon, 
@@ -13,9 +12,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 
-const Appointments: React.FC = () => {
+const Appointments = () => {
   const { user } = useAuth();
-  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedDate, setSelectedDate] = useState('all');
@@ -46,7 +45,7 @@ const Appointments: React.FC = () => {
     return matchesStatus && matchesDate;
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -56,7 +55,7 @@ const Appointments: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status) => {
     switch (status) {
       case 'confirmed': return <CheckCircleIcon className="h-5 w-5 text-green-600" />;
       case 'pending': return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600" />;
@@ -66,7 +65,7 @@ const Appointments: React.FC = () => {
     }
   };
 
-  const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
+  const handleStatusUpdate = async (appointmentId, newStatus) => {
     try {
       await appointmentsAPI.updateAppointmentStatus(appointmentId, newStatus);
       // Refresh appointments
@@ -82,7 +81,7 @@ const Appointments: React.FC = () => {
     }
   };
 
-  const handleCancelAppointment = async (appointmentId: string) => {
+  const handleCancelAppointment = async (appointmentId) => {
     if (!window.confirm('Are you sure you want to cancel this appointment?')) {
       return;
     }
@@ -100,6 +99,21 @@ const Appointments: React.FC = () => {
     } catch (error) {
       console.error('Failed to cancel appointment:', error);
     }
+  };
+
+  const [reviewModal, setReviewModal] = useState({ open: false, aptId: null, rating: 5, comment: '' });
+  const openReview = (aptId) => setReviewModal({ open: true, aptId, rating: 5, comment: '' });
+  const submitReview = async () => {
+    try {
+      const res = await appointmentsAPI.submitReview(reviewModal.aptId, { rating: reviewModal.rating, comment: reviewModal.comment });
+      if (res.success) {
+        const response = user?.role === 'doctor' 
+          ? await appointmentsAPI.getDoctorAppointments()
+          : await appointmentsAPI.getPatientAppointments();
+        if (response.success && response.data) setAppointments(response.data);
+        setReviewModal({ open: false, aptId: null, rating: 5, comment: '' });
+      }
+    } catch (e) {}
   };
 
   const uniqueDates = Array.from(new Set(appointments.map(apt => apt.date))).sort();
@@ -169,7 +183,39 @@ const Appointments: React.FC = () => {
           </div>
         </div>
       </div>
-
+    {reviewModal.open && (
+      <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Rate your doctor</h3>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+            <select
+              value={reviewModal.rating}
+              onChange={(e) => setReviewModal({ ...reviewModal, rating: Number(e.target.value) })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              {[5,4,3,2,1].map(r => (
+                <option key={r} value={r}>{r} Star{r>1?'s':''}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Review</label>
+            <textarea
+              rows={4}
+              value={reviewModal.comment}
+              onChange={(e) => setReviewModal({ ...reviewModal, comment: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Share your experience..."
+            />
+          </div>
+          <div className="flex justify-end space-x-2">
+            <button onClick={() => setReviewModal({ open: false, aptId: null, rating: 5, comment: '' })} className="px-4 py-2 border border-gray-300 rounded-md">Cancel</button>
+            <button onClick={submitReview} className="px-4 py-2 bg-blue-600 text-white rounded-md">Submit</button>
+          </div>
+        </div>
+      </div>
+    )}
       {/* Appointments List */}
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6 border-b border-gray-200">
@@ -183,13 +229,17 @@ const Appointments: React.FC = () => {
                 <div key={appointment._id} className="border border-gray-200 rounded-lg p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 font-bold">
-                          {user?.role === 'doctor' 
-                            ? appointment.patient.name.charAt(0)
-                            : appointment.doctor.user.name.charAt(0)
-                          }
-                        </span>
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
+                        {user?.role !== 'doctor' && appointment.doctor?.photoUrl ? (
+                          <img src={`${appointment.doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${appointment.doctor.photoUrl}`} alt={appointment.doctor?.user?.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-blue-600 font-bold">
+                            {user?.role === 'doctor' 
+                              ? appointment.patient.name.charAt(0)
+                              : appointment.doctor.user.name.charAt(0)
+                            }
+                          </span>
+                        )}
                       </div>
                       
                       <div className="flex-1">
@@ -281,6 +331,15 @@ const Appointments: React.FC = () => {
                           >
                             <TrashIcon className="h-3 w-3 mr-1" />
                             Cancel
+                          </button>
+                        )}
+
+                        {user?.role === 'patient' && appointment.status === 'completed' && (
+                          <button
+                            onClick={() => openReview(appointment._id)}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                          >
+                            Rate & Review
                           </button>
                         )}
                       </div>

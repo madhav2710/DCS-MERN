@@ -12,7 +12,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
-const Navbar: React.FC = () => {
+const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);

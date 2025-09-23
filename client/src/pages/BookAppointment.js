@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import { doctorsAPI, appointmentsAPI } from '../services/api';
-import { Doctor, User } from '../types';
+import { doctorsAPI, appointmentsAPI, paymentsAPI, API_ORIGIN } from '../services/api';
 import { 
   CalendarIcon, 
   ClockIcon, 
@@ -13,28 +12,25 @@ import {
 } from '@heroicons/react/24/outline';
 import { format, addDays, startOfDay } from 'date-fns';
 
-interface BookAppointmentFormData {
-  date: string;
-  time: string;
-  symptoms: string;
-}
-
-const BookAppointment: React.FC = () => {
-  const { doctorId } = useParams<{ doctorId: string }>();
+const BookAppointment = () => {
+  const { doctorId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [doctor, setDoctor] = useState<(Doctor & { user: User }) | null>(null);
+  const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [reviewsOpen, setReviewsOpen] = useState(false);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const REVIEWS_PER_PAGE = 5;
 
   const {
     register,
     handleSubmit,
     watch,
     formState: { errors },
-  } = useForm<BookAppointmentFormData>();
+  } = useForm();
 
   const selectedDate = watch('date');
 
@@ -88,7 +84,7 @@ const BookAppointment: React.FC = () => {
     return slots;
   };
 
-  const onSubmit = async (data: BookAppointmentFormData) => {
+  const onSubmit = async (data) => {
     if (!doctorId) return;
 
     setSubmitting(true);
@@ -105,14 +101,82 @@ const BookAppointment: React.FC = () => {
       const response = await appointmentsAPI.createAppointment(appointmentData);
       
       if (response.success) {
-        setSuccess(true);
-        setTimeout(() => {
-          navigate('/appointments');
-        }, 2000);
+        // Create order amount in paise (consultationFee is assumed in INR)
+        const amountPaise = Math.round(((doctor?.consultationFee || 0)) * 100);
+        const orderRes = await paymentsAPI.createOrder({ amount: amountPaise, currency: 'INR' });
+
+        if (!orderRes.success) {
+          throw new Error(orderRes.message || 'Failed to create payment order');
+        }
+
+        const order = orderRes.data;
+
+        // Load Razorpay checkout script if not present
+        const loadScript = () => new Promise((resolve, reject) => {
+          if (document.getElementById('razorpay-sdk')) return resolve();
+          const script = document.createElement('script');
+          script.id = 'razorpay-sdk';
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+          document.body.appendChild(script);
+        });
+
+        await loadScript();
+
+        // Get key from env or server
+        let keyId = process.env.REACT_APP_RAZORPAY_KEY_ID;
+        if (!keyId) {
+          try {
+            const keyRes = await paymentsAPI.getKey();
+            if (keyRes.success && keyRes.data?.key_id) keyId = keyRes.data.key_id;
+          } catch {}
+        }
+
+        if (!keyId) {
+          setError('Razorpay key_id not found. Please set REACT_APP_RAZORPAY_KEY_ID in client .env or configure server key.');
+          return;
+        }
+
+        const options = {
+          key: keyId,
+          amount: order.amount,
+          currency: order.currency,
+          name: 'Doctor Consultation',
+          description: `Consultation with Dr. ${doctor?.user?.name ?? 'Doctor'}`,
+          order_id: order.id,
+          prefill: {
+            name: user?.name,
+            email: user?.email,
+            contact: user?.phone || '',
+          },
+          theme: { color: '#2563EB' },
+          handler: async function (resp) {
+            try {
+              const verifyRes = await paymentsAPI.verifyPayment({
+                razorpay_order_id: resp.razorpay_order_id,
+                razorpay_payment_id: resp.razorpay_payment_id,
+                razorpay_signature: resp.razorpay_signature,
+              });
+
+              if (verifyRes.success) {
+                setSuccess(true);
+                setTimeout(() => navigate('/appointments'), 1500);
+              } else {
+                setError(verifyRes.message || 'Payment verification failed');
+              }
+            } catch (e) {
+              setError(e.message || 'Payment verification failed');
+            }
+          },
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
       } else {
         setError(response.message || 'Failed to book appointment');
       }
-    } catch (error: any) {
+    } catch (error) {
       setError(error.message || 'Failed to book appointment. Please try again.');
     } finally {
       setSubmitting(false);
@@ -180,10 +244,14 @@ const BookAppointment: React.FC = () => {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="text-center mb-6">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-blue-600 font-bold text-2xl">
-                  {doctor.user.name.charAt(0)}
-                </span>
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center mx-auto mb-4">
+                {doctor.photoUrl ? (
+                  <img src={`${doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${doctor.photoUrl}`} alt={doctor.user.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-blue-600 font-bold text-2xl">
+                    {doctor.user.name.charAt(0)}
+                  </span>
+                )}
               </div>
               <h2 className="text-xl font-semibold text-gray-900">Dr. {doctor.user.name}</h2>
               <p className="text-gray-600">{doctor.specialization}</p>
@@ -208,10 +276,81 @@ const BookAppointment: React.FC = () => {
               </div>
             </div>
 
+    {reviewsOpen && doctor && Array.isArray(doctor.reviews) && (
+      <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">All Reviews</h3>
+            <button onClick={() => setReviewsOpen(false)} className="text-gray-600 hover:text-gray-800">Close</button>
+          </div>
+          <div className="space-y-4 max-h-[60vh] overflow-auto">
+            {doctor.reviews
+              .slice((reviewsPage-1)*REVIEWS_PER_PAGE, reviewsPage*REVIEWS_PER_PAGE)
+              .map((r, idx) => (
+                <div key={`${idx}-${r.patientId?._id || ''}`} className="border border-gray-200 rounded-md p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium text-gray-900">{r.patientId?.name || 'Patient'}</div>
+                    <div className="text-yellow-500">{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</div>
+                  </div>
+                  {r.comment && <p className="text-sm text-gray-700 mt-1">{r.comment}</p>}
+                  {r.createdAt && (
+                    <p className="text-xs text-gray-500 mt-1">{new Date(r.createdAt).toLocaleDateString()}</p>
+                  )}
+                </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-4">
+            <button
+              onClick={() => setReviewsPage(Math.max(1, reviewsPage-1))}
+              className="px-3 py-1 border border-gray-300 rounded-md disabled:opacity-50"
+              disabled={reviewsPage === 1}
+            >
+              Previous
+            </button>
+            <div className="text-sm text-gray-600">
+              Page {reviewsPage} of {Math.max(1, Math.ceil(doctor.reviews.length / REVIEWS_PER_PAGE))}
+            </div>
+            <button
+              onClick={() => setReviewsPage(Math.min(Math.ceil(doctor.reviews.length / REVIEWS_PER_PAGE), reviewsPage+1))}
+              className="px-3 py-1 border border-gray-300 rounded-md disabled:opacity-50"
+              disabled={reviewsPage >= Math.ceil(doctor.reviews.length / REVIEWS_PER_PAGE)}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
             <div className="mt-6 pt-6 border-t border-gray-200">
               <h3 className="font-medium text-gray-900 mb-2">About</h3>
               <p className="text-sm text-gray-600">{doctor.bio}</p>
             </div>
+
+            {Array.isArray(doctor.reviews) && doctor.reviews.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="font-medium text-gray-900 mb-2">Recent Reviews</h3>
+                <div className="space-y-3">
+                  {doctor.reviews.slice(0, 3).map((r, idx) => (
+                    <div key={idx} className="text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-900">{r.patientId?.name || 'Patient'}</span>
+                        <span className="text-yellow-500">{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
+                      </div>
+                      {r.comment && <p className="text-gray-600">{r.comment}</p>}
+                    </div>
+                  ))}
+                </div>
+                {doctor.reviews.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => { setReviewsOpen(true); setReviewsPage(1); }}
+                    className="mt-3 text-blue-600 hover:text-blue-700 text-sm"
+                  >
+                    See all {doctor.reviews.length} reviews
+                  </button>
+                )}
+              </div>
+            )}
 
             <div className="mt-4">
               <h3 className="font-medium text-gray-900 mb-2">Education</h3>
