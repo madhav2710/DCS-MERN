@@ -52,8 +52,9 @@ const Dashboard = () => {
   }, [isAuthenticated]);
 
   const filteredDoctors = doctors.filter(doctor => {
-    const matchesSearch = doctor.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!doctor || !doctor.user) return false;
+    const matchesSearch = doctor.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         doctor.specialization?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSpecialization = !selectedSpecialization || doctor.specialization === selectedSpecialization;
     return matchesSearch && matchesSpecialization;
   });
@@ -143,22 +144,23 @@ const Dashboard = () => {
               {upcomingAppointments.length > 0 ? (
                 <div className="space-y-4">
                   {upcomingAppointments.map((appointment) => (
+                    appointment && appointment.doctor && appointment.doctor.user ? (
                     <div key={appointment._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div className="flex items-center">
                       <div className="w-12 h-12 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
                         {appointment.doctor.photoUrl ? (
-                          <img src={`${appointment.doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${appointment.doctor.photoUrl}`} alt={appointment.doctor.user.name} className="h-full w-full object-cover" />
+                          <img src={`${appointment.doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${appointment.doctor.photoUrl}`} alt={appointment.doctor.user?.name || 'Doctor'} className="h-full w-full object-cover" />
                         ) : (
                           <span className="text-blue-600 font-bold">
-                            {appointment.doctor.user.name.charAt(0)}
+                            {appointment.doctor.user?.name?.charAt(0) || 'D'}
                           </span>
                         )}
                       </div>
                         <div className="ml-4">
                           <h3 className="font-semibold text-gray-900">
-                            Dr. {appointment.doctor.user.name}
+                            Dr. {appointment.doctor.user?.name || 'Unknown'}
                           </h3>
-                          <p className="text-sm text-gray-600">{appointment.doctor.specialization}</p>
+                          <p className="text-sm text-gray-600">{appointment.doctor.specialization || 'N/A'}</p>
                           <p className="text-sm text-gray-500">
                             {format(new Date(appointment.date), 'MMM dd, yyyy')} at {appointment.time}
                           </p>
@@ -170,6 +172,7 @@ const Dashboard = () => {
                         </span>
                       </div>
                     </div>
+                    ) : null
                   ))}
                 </div>
               ) : (
@@ -236,22 +239,23 @@ const Dashboard = () => {
 
               <div className="space-y-3">
                 {filteredDoctors.slice(0, 5).map((doctor) => (
+                  doctor && doctor.user ? (
                   <div key={doctor._id} className="p-4 border border-gray-200 rounded-lg">
                     <div className="flex items-center">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
                         {doctor.photoUrl ? (
-                          <img src={`${doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${doctor.photoUrl}`} alt={doctor.user.name} className="h-full w-full object-cover" />
+                          <img src={`${doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${doctor.photoUrl}`} alt={doctor.user?.name || 'Doctor'} className="h-full w-full object-cover" />
                         ) : (
                           <span className="text-blue-600 font-bold text-sm">
-                            {doctor.user.name.charAt(0)}
+                            {doctor.user?.name?.charAt(0) || 'D'}
                           </span>
                         )}
                       </div>
                       <div className="ml-3 flex-1">
                         <h3 className="text-sm font-medium text-gray-900">
-                          Dr. {doctor.user.name}
+                          Dr. {doctor.user?.name || 'Unknown'}
                         </h3>
-                        <p className="text-xs text-gray-600">{doctor.specialization}</p>
+                        <p className="text-xs text-gray-600">{doctor.specialization || 'N/A'}</p>
                         <div className="flex items-center mt-1">
                           <StarIcon className="h-3 w-3 text-yellow-400" />
                           <span className="text-xs text-gray-600 ml-1">
@@ -272,6 +276,7 @@ const Dashboard = () => {
                       </Link>
                     </div>
                   </div>
+                  ) : null
                 ))}
               </div>
 

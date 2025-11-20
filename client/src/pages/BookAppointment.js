@@ -246,14 +246,14 @@ const BookAppointment = () => {
             <div className="text-center mb-6">
               <div className="w-24 h-24 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center mx-auto mb-4">
                 {doctor.photoUrl ? (
-                  <img src={`${doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${doctor.photoUrl}`} alt={doctor.user.name} className="h-full w-full object-cover" />
+                  <img src={`${doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${doctor.photoUrl}`} alt={doctor.user?.name || 'Doctor'} className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-blue-600 font-bold text-2xl">
-                    {doctor.user.name.charAt(0)}
+                    {doctor.user?.name?.charAt(0) || 'D'}
                   </span>
                 )}
               </div>
-              <h2 className="text-xl font-semibold text-gray-900">Dr. {doctor.user.name}</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Dr. {doctor.user?.name || 'Unknown'}</h2>
               <p className="text-gray-600">{doctor.specialization}</p>
             </div>
 

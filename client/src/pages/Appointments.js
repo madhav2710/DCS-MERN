@@ -235,8 +235,8 @@ const Appointments = () => {
                         ) : (
                           <span className="text-blue-600 font-bold">
                             {user?.role === 'doctor' 
-                              ? appointment.patient.name.charAt(0)
-                              : appointment.doctor.user.name.charAt(0)
+                              ? appointment.patient?.name?.charAt(0) || 'P'
+                              : appointment.doctor?.user?.name?.charAt(0) || 'D'
                             }
                           </span>
                         )}
@@ -246,8 +246,8 @@ const Appointments = () => {
                         <div className="flex items-center space-x-2 mb-2">
                           <h3 className="text-lg font-semibold text-gray-900">
                             {user?.role === 'doctor' 
-                              ? appointment.patient.name
-                              : `Dr. ${appointment.doctor.user.name}`
+                              ? appointment.patient?.name || 'Unknown Patient'
+                              : `Dr. ${appointment.doctor?.user?.name || 'Unknown'}`
                             }
                           </h3>
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(appointment.status)}`}>

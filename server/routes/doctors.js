@@ -39,12 +39,14 @@ router.get('/', async (req, res) => {
       .populate('userId', 'name email role phone')
       .select('-__v');
 
-    const doctorsWithUsers = doctors.map(doctor => {
-      const doctorObj = doctor.toObject();
-      doctorObj.user = doctorObj.userId;
-      delete doctorObj.userId;
-      return doctorObj;
-    });
+    const doctorsWithUsers = doctors
+      .map(doctor => {
+        const doctorObj = doctor.toObject();
+        doctorObj.user = doctorObj.userId;
+        delete doctorObj.userId;
+        return doctorObj;
+      })
+      .filter(doctor => doctor.user !== null && doctor.user !== undefined); // Filter out doctors with null users
 
     res.json({
       success: true,

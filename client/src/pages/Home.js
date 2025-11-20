@@ -171,7 +171,7 @@ const Home = () => {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {doctors.map((doctor) => (
+              {doctors.filter(doctor => doctor && doctor.user).map((doctor) => (
                 <div
                   key={doctor._id}
                   className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300"
@@ -180,18 +180,18 @@ const Home = () => {
                     <div className="flex items-center mb-4">
                       <div className="w-16 h-16 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
                         {doctor.photoUrl ? (
-                          <img src={`${doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${doctor.photoUrl}`} alt={doctor.user.name} className="h-full w-full object-cover" />
+                          <img src={`${doctor.photoUrl.startsWith('http') ? '' : API_ORIGIN}${doctor.photoUrl}`} alt={doctor.user?.name || 'Doctor'} className="h-full w-full object-cover" />
                         ) : (
                           <span className="text-blue-600 font-bold text-xl">
-                            {doctor.user.name.charAt(0)}
+                            {doctor.user?.name?.charAt(0) || 'D'}
                           </span>
                         )}
                       </div>
                       <div className="ml-4">
                         <h3 className="text-lg font-semibold text-gray-900">
-                          Dr. {doctor.user.name}
+                          Dr. {doctor.user?.name || 'Unknown'}
                         </h3>
-                        <p className="text-gray-600">{doctor.specialization}</p>
+                        <p className="text-gray-600">{doctor.specialization || 'N/A'}</p>
                       </div>
                     </div>
 
@@ -205,7 +205,7 @@ const Home = () => {
                     </div>
 
                     <p className="text-gray-600 text-sm mb-4">
-                      {doctor.bio.substring(0, 100)}...
+                      {doctor.bio ? doctor.bio.substring(0, 100) + '...' : 'No bio available'}
                     </p>
 
                     <div className="flex justify-between items-center">
