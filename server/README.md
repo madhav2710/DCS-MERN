@@ -113,11 +113,6 @@ Download and install MongoDB Compass from: https://www.mongodb.com/try/download/
 - `PUT /api/appointments/:id/cancel` - Cancel appointment (protected)
 - `GET /api/appointments/:id` - Get appointment by ID (protected)
 
-### Health Check
-
-- `GET /api/health` - Server health check
-- `GET /` - API documentation
-
 ## 🔐 Authentication
 
 ### JWT Token Usage
@@ -134,55 +129,7 @@ Authorization: Bearer <your-jwt-token>
 - **Doctor**: Can view their appointments and update status
 - **Admin**: Full access (future implementation)
 
-## 📊 Database Schema
-
-### User Model
-
-```javascript
-{
-  name: String (required),
-  email: String (required, unique),
-  password: String (hashed),
-  role: String (patient/doctor/admin),
-  phone: String,
-  timestamps: true
-}
-```
-
-### Doctor Model
-
-```javascript
-{
-  userId: ObjectId (ref: User),
-  specialization: String (required),
-  experience: Number (required),
-  education: String (required),
-  licenseNumber: String (required, unique),
-  availability: Array,
-  rating: Number,
-  totalReviews: Number,
-  bio: String,
-  consultationFee: Number (required),
-  timestamps: true
-}
-```
-
-### Appointment Model
-
-```javascript
-{
-  patientId: ObjectId (ref: User),
-  doctorId: ObjectId (ref: Doctor),
-  date: String (required),
-  time: String (required),
-  status: String (pending/confirmed/completed/cancelled),
-  symptoms: String,
-  notes: String,
-  timestamps: true
-}
-```
-
-## 🚀 Running the Application
+Running the Application
 
 ### Development Mode
 
@@ -199,19 +146,9 @@ npm start
 ### Server Status
 
 - **URL**: http://localhost:5000
-- **Health Check**: http://localhost:5000/api/health
-- **API Docs**: http://localhost:5000
+  |
 
-## 🔧 Environment Variables
-
-| Variable      | Description               | Default                                                  |
-| ------------- | ------------------------- | -------------------------------------------------------- |
-| `PORT`        | Server port               | 5000                                                     |
-| `MONGODB_URI` | MongoDB connection string | mongodb://localhost:27017/doctor-appointment-system      |
-| `JWT_SECRET`  | JWT signing secret        | your-super-secret-jwt-key-change-this-in-production-2024 |
-| `NODE_ENV`    | Environment mode          | development                                              |
-
-## 🐛 Error Handling
+Error Handling
 
 The API includes comprehensive error handling:
 
@@ -221,56 +158,10 @@ The API includes comprehensive error handling:
 - **404**: Not Found (resource not found)
 - **500**: Internal Server Error (server errors)
 
-## 📝 Logging
-
-The server logs all requests with timestamps:
-
-```
-2024-01-15T10:30:00.000Z - POST /api/auth/register
-2024-01-15T10:30:01.000Z - GET /api/doctors
-```
-
-## 🔒 Security Features
-
-- **Password Hashing**: bcryptjs with salt rounds
-- **JWT Tokens**: Secure authentication
-- **Input Validation**: Request data validation
-- **CORS**: Cross-origin resource sharing
-- **Rate Limiting**: Ready for implementation
-- **Helmet**: Security headers (ready for implementation)
-
-## 🚀 Deployment
+Deployment
 
 ### Local Development
 
 1. Ensure MongoDB is running
 2. Set up environment variables
 3. Run `npm run dev`
-
-### Production Deployment
-
-1. Set `NODE_ENV=production`
-2. Use a strong JWT_SECRET
-3. Set up MongoDB Atlas or production MongoDB
-4. Use PM2 or similar process manager
-5. Set up reverse proxy (nginx)
-
-## 📞 Support
-
-For issues or questions:
-
-1. Check the logs for error messages
-2. Verify MongoDB connection
-3. Ensure all environment variables are set
-4. Check API endpoint documentation
-
-## 🎯 Next Steps
-
-- [ ] Add email verification
-- [ ] Implement password reset
-- [ ] Add file upload for doctor documents
-- [ ] Implement real-time notifications
-- [ ] Add payment integration
-- [ ] Implement admin dashboard
-- [ ] Add API rate limiting
-- [ ] Set up automated testing
